@@ -1,6 +1,16 @@
 import CutDiagram from './CutDiagram'
 import { generarPDF } from '../utils/pdfExport'
-import type { Cotizacion, SolucionMono, SolucionCombinada } from '../types'
+import { fmt } from '../utils/format'
+import type { Cotizacion, SolucionMono, SolucionCombinada, TipoFraccion } from '../types'
+
+function tipoNombre(tipo: TipoFraccion): string {
+  switch (tipo) {
+    case 'completa': return 'Hoja completa'
+    case 'media_h':  return 'Media hoja horizontal'
+    case 'media_v':  return 'Media hoja vertical'
+    case 'cuarto':   return 'Cuarto de hoja'
+  }
+}
 
 interface Props {
   cotizacion: Cotizacion
@@ -15,6 +25,7 @@ export default function ResultView({ cotizacion, onNuevoPedido }: Props) {
   interface HojaMostrar {
     numeroHoja: number
     label: string
+    tipo: TipoFraccion
     anchoHoja: number
     altoHoja: number
     layout: SolucionMono['layouts'][number]
@@ -35,6 +46,7 @@ export default function ResultView({ cotizacion, onNuevoPedido }: Props) {
       hojas.push({
         numeroHoja: i + 1,
         label: sol.superficie.label,
+        tipo: sol.superficie.tipo,
         anchoHoja: sol.superficie.ancho,
         altoHoja: sol.superficie.alto,
         layout: lay,
@@ -53,6 +65,7 @@ export default function ResultView({ cotizacion, onNuevoPedido }: Props) {
         hojas.push({
           numeroHoja: n,
           label: s.superficie.label,
+          tipo: s.superficie.tipo,
           anchoHoja: s.superficie.ancho,
           altoHoja: s.superficie.alto,
           layout: lay,
@@ -69,11 +82,11 @@ export default function ResultView({ cotizacion, onNuevoPedido }: Props) {
     : 'text-red-500'
 
   // Resumen de hojas a vender (agrupado)
-  const resumenHojas = new Map<string, { label: string; cantidad: number; ancho: number; alto: number }>()
+  const resumenHojas = new Map<string, { label: string; tipo: TipoFraccion; cantidad: number; ancho: number; alto: number }>()
   hojas.forEach(h => {
     const k = h.label
     if (resumenHojas.has(k)) { resumenHojas.get(k)!.cantidad++ }
-    else resumenHojas.set(k, { label: h.label, cantidad: 1, ancho: h.anchoHoja, alto: h.altoHoja })
+    else resumenHojas.set(k, { label: h.label, tipo: h.tipo, cantidad: 1, ancho: h.anchoHoja, alto: h.altoHoja })
   })
 
   return (
@@ -146,11 +159,13 @@ export default function ResultView({ cotizacion, onNuevoPedido }: Props) {
               <span className="bg-slate-700 text-white text-sm font-bold px-2.5 py-0.5 rounded min-w-[2rem] text-center">
                 {r.cantidad}×
               </span>
-              <span className="text-sm font-medium text-slate-800">{r.label}</span>
-              <span className="text-xs text-slate-400">
-                ({r.ancho.toFixed(2)} × {r.alto.toFixed(2)} m c/u)
-              </span>
-              <span className="ml-auto text-sm text-slate-500">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-slate-800">
+                  {tipoNombre(r.tipo)} de {cotizacion.materialGrupo === 'ESPEJO' ? 'Espejo' : 'Vidrio'} {cotizacion.materialLabel}
+                </p>
+                <p className="text-xs text-slate-400">{fmt(r.ancho)} × {fmt(r.alto)} m c/u</p>
+              </div>
+              <span className="text-sm text-slate-500">
                 {(r.cantidad * r.ancho * r.alto).toFixed(3)} m²
               </span>
             </div>

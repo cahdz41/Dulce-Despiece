@@ -1,5 +1,15 @@
 import { jsPDF } from 'jspdf'
-import type { Cotizacion, SolucionCombinada, SolucionMono } from '../types'
+import type { Cotizacion, SolucionCombinada, SolucionMono, TipoFraccion } from '../types'
+import { fmt } from './format'
+
+function tipoNombre(tipo: TipoFraccion): string {
+  switch (tipo) {
+    case 'completa': return 'Hoja completa'
+    case 'media_h':  return 'Media hoja horizontal'
+    case 'media_v':  return 'Media hoja vertical'
+    case 'cuarto':   return 'Cuarto de hoja'
+  }
+}
 
 // ── Paleta (RGB) ──────────────────────────────────────────────────────────────
 const COLORES: Array<[number, number, number]> = [
@@ -13,7 +23,7 @@ const COLORES_STROKE: Array<[number, number, number]> = [
   [99, 102, 241], [16, 185, 129], [217, 119, 6],  [37, 99, 235],
 ]
 
-const EMPRESA  = 'Vidrios y Espejos'
+const EMPRESA  = 'Vidrios y Aluminio EL CASTILLO'
 const A4W      = 210   // mm
 const A4H      = 297   // mm
 const MARGIN   = 14    // mm
@@ -106,8 +116,8 @@ function drawPiezasTable(doc: jsPDF, cotizacion: Cotizacion, y: number): number 
     doc.setTextColor(15, 23, 42)
     doc.setFontSize(8.5)
     doc.text(String(i + 1), MARGIN + 3, y + 4.5)
-    doc.text(p.ancho.toFixed(2), MARGIN + 14, y + 4.5)
-    doc.text(p.alto.toFixed(2), MARGIN + 50, y + 4.5)
+    doc.text(fmt(p.ancho), MARGIN + 14, y + 4.5)
+    doc.text(fmt(p.alto), MARGIN + 50, y + 4.5)
     doc.text(String(p.cantidad), MARGIN + 86, y + 4.5)
     doc.text(`${(p.ancho * p.alto).toFixed(3)} m²`, MARGIN + 118, y + 4.5)
     doc.text(`${(p.ancho * p.alto * p.cantidad).toFixed(3)} m²`, MARGIN + 155, y + 4.5)
@@ -130,22 +140,21 @@ function drawPiezasTable(doc: jsPDF, cotizacion: Cotizacion, y: number): number 
 
 function drawResumenHojas(doc: jsPDF, cotizacion: Cotizacion, y: number): number {
   const { tipo, optima } = cotizacion.resultado
+  const grupoStr = cotizacion.materialGrupo === 'ESPEJO' ? 'Espejo' : 'Vidrio'
 
-  // Recopilar hojas
-  const hojas: { label: string; ancho: number; alto: number }[] = []
+  const hojas: { label: string; tipo: TipoFraccion; ancho: number; alto: number }[] = []
   if (tipo === 'mono') {
     const s = optima as SolucionMono
     for (let i = 0; i < s.nUnidades; i++)
-      hojas.push({ label: s.superficie.label, ancho: s.superficie.ancho, alto: s.superficie.alto })
+      hojas.push({ label: s.superficie.label, tipo: s.superficie.tipo, ancho: s.superficie.ancho, alto: s.superficie.alto })
   } else {
     const c = optima as SolucionCombinada
     for (const sol of [c.solA, c.solB])
       for (let i = 0; i < sol.nUnidades; i++)
-        hojas.push({ label: sol.superficie.label, ancho: sol.superficie.ancho, alto: sol.superficie.alto })
+        hojas.push({ label: sol.superficie.label, tipo: sol.superficie.tipo, ancho: sol.superficie.ancho, alto: sol.superficie.alto })
   }
 
-  // Agrupar
-  const agrupado = new Map<string, { label: string; cantidad: number; ancho: number; alto: number }>()
+  const agrupado = new Map<string, { label: string; tipo: TipoFraccion; cantidad: number; ancho: number; alto: number }>()
   for (const h of hojas) {
     if (agrupado.has(h.label)) agrupado.get(h.label)!.cantidad++
     else agrupado.set(h.label, { ...h, cantidad: 1 })
@@ -162,9 +171,9 @@ function drawResumenHojas(doc: jsPDF, cotizacion: Cotizacion, y: number): number
   doc.setTextColor(255, 255, 255)
   doc.setFontSize(8)
   doc.setFont('helvetica', 'bold')
-  doc.text('Tipo de hoja', MARGIN + 3, y + 5)
-  doc.text('Cant.', MARGIN + 100, y + 5)
-  doc.text('Dimensiones', MARGIN + 120, y + 5)
+  doc.text('Descripción', MARGIN + 3, y + 5)
+  doc.text('Cant.', MARGIN + 108, y + 5)
+  doc.text('Dimensiones', MARGIN + 124, y + 5)
   doc.text('Área', MARGIN + 165, y + 5)
   y += 7
 
@@ -173,16 +182,16 @@ function drawResumenHojas(doc: jsPDF, cotizacion: Cotizacion, y: number): number
   for (const v of agrupado.values()) {
     const bg: [number, number, number] = idx % 2 === 0 ? [255, 255, 255] : [248, 250, 252]
     doc.setFillColor(...bg)
-    doc.rect(MARGIN, y, COL_W, 6.5, 'F')
+    doc.rect(MARGIN, y, COL_W, 7, 'F')
     doc.setDrawColor(226, 232, 240)
-    doc.rect(MARGIN, y, COL_W, 6.5, 'S')
+    doc.rect(MARGIN, y, COL_W, 7, 'S')
     doc.setTextColor(15, 23, 42)
-    doc.setFontSize(8.5)
-    doc.text(v.label, MARGIN + 3, y + 4.5)
-    doc.text(String(v.cantidad), MARGIN + 100, y + 4.5)
-    doc.text(`${v.ancho.toFixed(2)} × ${v.alto.toFixed(2)} m`, MARGIN + 120, y + 4.5)
-    doc.text(`${(v.cantidad * v.ancho * v.alto).toFixed(3)} m²`, MARGIN + 165, y + 4.5)
-    y += 6.5
+    doc.setFontSize(8)
+    doc.text(`${tipoNombre(v.tipo)} — ${grupoStr} ${cotizacion.materialLabel}`, MARGIN + 3, y + 4.8)
+    doc.text(String(v.cantidad), MARGIN + 108, y + 4.8)
+    doc.text(`${fmt(v.ancho)} × ${fmt(v.alto)} m`, MARGIN + 124, y + 4.8)
+    doc.text(`${(v.cantidad * v.ancho * v.alto).toFixed(3)} m²`, MARGIN + 165, y + 4.8)
+    y += 7
     idx++
   }
   return y + 6
@@ -254,7 +263,7 @@ function drawCroquis(
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(8.5)
   doc.setTextColor(30, 41, 59)
-  doc.text(`Hoja ${hojaNum} — ${label}  (${anchoHoja.toFixed(2)} × ${altoHoja.toFixed(2)} m)`, MARGIN, y + 5)
+  doc.text(`Hoja ${hojaNum} — ${label}  (${fmt(anchoHoja)} × ${fmt(altoHoja)} m)`, MARGIN, y + 5)
 
   // Fondo de desperdicio (trama diagonal simulada con rectángulo gris)
   doc.setFillColor(226, 232, 240)
@@ -282,9 +291,9 @@ function drawCroquis(
       doc.setFont('helvetica', 'bold')
       doc.setFontSize(fs)
       doc.setTextColor(30, 41, 59)
-      doc.text(`${p.ancho.toFixed(2)}`, px + pw / 2, py + ph / 2 - fs * 0.3, { align: 'center' })
+      doc.text(`${fmt(p.ancho)} m`, px + pw / 2, py + ph / 2 - fs * 0.3, { align: 'center' })
       doc.setFont('helvetica', 'normal')
-      doc.text(`×${p.alto.toFixed(2)}`, px + pw / 2, py + ph / 2 + fs * 0.9, { align: 'center' })
+      doc.text(`×${fmt(p.alto)} m`, px + pw / 2, py + ph / 2 + fs * 0.9, { align: 'center' })
     }
   }
 
@@ -292,8 +301,8 @@ function drawCroquis(
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(7)
   doc.setTextColor(100, 116, 139)
-  doc.text(`${anchoHoja.toFixed(2)} m`, ox + hojaW / 2, oy - 2, { align: 'center' })
-  doc.text(`${altoHoja.toFixed(2)} m`, ox - 2, oy + hojaH / 2, { align: 'right' })
+  doc.text(`${fmt(anchoHoja)} m`, ox + hojaW / 2, oy - 2, { align: 'center' })
+  doc.text(`${fmt(altoHoja)} m`, ox - 2, oy + hojaH / 2, { align: 'right' })
 
   // Leyenda lateral
   const leyX   = ox + hojaW + 8
@@ -320,7 +329,7 @@ function drawCroquis(
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(7)
     doc.setTextColor(30, 41, 59)
-    const txt = `${info.cnt}× ${info.ancho.toFixed(2)}×${info.alto.toFixed(2)} m`
+    const txt = `${info.cnt}× ${fmt(info.ancho)} × ${fmt(info.alto)} m`
     doc.text(txt.substring(0, Math.floor(leyMaxW / 1.8)), leyX + 6, ly)
     ly += 5.5
   }
@@ -333,7 +342,23 @@ function drawCroquis(
   const ef = layout.eficiencia.toFixed(1)
   const sob = (layout.areaSuperficie - layout.areaUsada).toFixed(3)
   doc.text(`Eficiencia: ${ef}%`, leyX, ly); ly += 4.5
-  doc.text(`Sobrante: ${sob} m²`, leyX, ly)
+  doc.text(`Sobrante total: ${sob} m²`, leyX, ly)
+
+  if (layout.sobrantes.length > 0) {
+    ly += 6
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(7)
+    doc.setTextColor(100, 116, 139)
+    doc.text('SOBRANTES', leyX, ly)
+    ly += 4
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(6.5)
+    for (const s of layout.sobrantes) {
+      doc.setTextColor(30, 41, 59)
+      doc.text(`${fmt(s.w)} × ${fmt(s.h)} m`, leyX, ly)
+      ly += 3.8
+    }
+  }
 
   // Línea separadora
   const totalH = Math.max(oy + hojaH, ly) - y + 8

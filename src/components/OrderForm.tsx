@@ -98,6 +98,7 @@ export default function OrderForm({ inventario, numeroCotizacion, onCotizacion }
             fecha:         new Date(),
             clienteNombre: clienteNombre.trim(),
             materialLabel: opSeleccionada?.label ?? materialKey,
+            materialGrupo: (opSeleccionada?.grupo ?? 'VIDRIO') as 'VIDRIO' | 'ESPEJO',
             piezas,
             resultado,
           })

@@ -40,8 +40,8 @@ export default function App() {
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-blue-400 rounded flex items-center justify-center text-slate-800 font-bold text-sm">V</div>
             <div>
-              <h1 className="text-base font-semibold leading-tight">Optimizador de Cortes</h1>
-              <p className="text-xs text-slate-400">Vidrios y Espejos</p>
+              <h1 className="text-base font-semibold leading-tight">Vidrios y Aluminio EL CASTILLO</h1>
+              <p className="text-xs text-slate-400">Optimizador de cortes</p>
             </div>
           </div>
 
