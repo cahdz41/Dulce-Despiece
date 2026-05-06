@@ -75,12 +75,6 @@ export default function ResultView({ cotizacion, onNuevoPedido }: Props) {
     })
   }
 
-  const colorEficiencia = eficienciaGlobal >= 70
-    ? 'text-green-600'
-    : eficienciaGlobal >= 50
-    ? 'text-amber-600'
-    : 'text-red-500'
-
   // Resumen de hojas a vender (agrupado)
   const resumenHojas = new Map<string, { label: string; tipo: TipoFraccion; cantidad: number; ancho: number; alto: number }>()
   hojas.forEach(h => {
