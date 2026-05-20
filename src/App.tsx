@@ -2,10 +2,11 @@ import { useState } from 'react'
 import OrderForm from './components/OrderForm'
 import ResultView from './components/ResultView'
 import ImportButton from './components/ImportButton'
+import FacturasPage from './components/facturas/FacturasPage'
 import { INVENTARIO_BASE } from './data/inventory'
 import type { Cotizacion, Material } from './types'
 
-type Pantalla = 'pedido' | 'resultado'
+type Pantalla = 'pedido' | 'resultado' | 'facturas'
 
 export default function App() {
   const [pantalla, setPantalla]           = useState<Pantalla>('pedido')
@@ -72,7 +73,7 @@ export default function App() {
                     : 'text-slate-300 hover:text-white hover:bg-slate-700'
                 }`}
               >
-                Nuevo Pedido
+                Pedido
               </button>
               <button
                 disabled={!cotizacion}
@@ -86,6 +87,16 @@ export default function App() {
                 }`}
               >
                 Resultado
+              </button>
+              <button
+                onClick={() => setPantalla('facturas')}
+                className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
+                  pantalla === 'facturas'
+                    ? 'bg-blue-500 text-white'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-700'
+                }`}
+              >
+                Facturas
               </button>
             </nav>
           </div>
@@ -138,6 +149,7 @@ export default function App() {
         {pantalla === 'resultado' && cotizacion && (
           <ResultView cotizacion={cotizacion} onNuevoPedido={handleNuevoPedido} />
         )}
+        {pantalla === 'facturas' && <FacturasPage />}
       </main>
     </div>
   )
