@@ -17,6 +17,7 @@ interface FormState {
   chofer: string
   choferCustom: string
   horaEntrega: string
+  lugarEntrega: string
   montoTotal: string
   descuento: string
   descuentoTipo: 'monto' | 'porcentaje'
@@ -38,6 +39,7 @@ const INICIAL: FormState = {
   chofer: CHOFERES_FIJOS[0],
   choferCustom: '',
   horaEntrega: '',
+  lugarEntrega: '',
   montoTotal: '',
   descuento: '',
   descuentoTipo: 'monto',
@@ -114,6 +116,7 @@ export default function NuevaFacturaModal({ onClose }: Props) {
         vendedor: form.vendedor,
         chofer: choferFinal.trim(),
         horaEntrega: form.horaEntrega,
+        lugarEntrega: form.lugarEntrega.trim(),
         montoTotal,
         descuento,
         autorizaDescuento: form.autorizaDescuento.trim(),
@@ -219,6 +222,16 @@ export default function NuevaFacturaModal({ onClose }: Props) {
                   type="time"
                   value={form.horaEntrega}
                   onChange={e => set('horaEntrega', e.target.value)}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Lugar de entrega</label>
+                <input
+                  type="text"
+                  value={form.lugarEntrega}
+                  onChange={e => set('lugarEntrega', e.target.value)}
+                  placeholder="Ej: Domicilio del cliente, Sucursal..."
                   className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
                 />
               </div>

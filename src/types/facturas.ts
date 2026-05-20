@@ -13,6 +13,7 @@ export interface Factura {
   numeroCotizacion: string
   fechaCreacion: Timestamp
   horaEntrega: string
+  lugarEntrega: string
 
   // Personas
   cliente: string

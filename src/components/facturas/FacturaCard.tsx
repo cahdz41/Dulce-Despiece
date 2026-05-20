@@ -58,6 +58,12 @@ export default function FacturaCard({ factura, onClick }: Props) {
                 <span className="text-xs text-slate-500">Entrega {factura.horaEntrega}</span>
               </>
             )}
+            {factura.lugarEntrega && (
+              <>
+                <span className="text-xs text-slate-400">·</span>
+                <span className="text-xs text-slate-500 truncate max-w-[140px]">{factura.lugarEntrega}</span>
+              </>
+            )}
           </div>
         </div>
 

@@ -46,16 +46,16 @@ export function generarEtiquetasPDF(etiquetas: Etiqueta[]): void {
 
     // ── Clave (bold, grande) ──────────────────────────────────────
     doc.setFont('helvetica', 'bold')
-    doc.setFontSize(13)
+    doc.setFontSize(26)
     const claveLines = doc.splitTextToSize(etiqueta.clave, textW)
-    const claveLineH = 13 * 0.3528        // pt → mm (1pt = 0.3528mm)
+    const claveLineH = 26 * 0.3528        // pt → mm (1pt = 0.3528mm)
     const claveTotalH = claveLines.length * claveLineH
 
     // ── Descripción (normal, pequeña) ─────────────────────────────
     doc.setFont('helvetica', 'normal')
-    doc.setFontSize(7.5)
+    doc.setFontSize(9.5)
     const descLines = doc.splitTextToSize(etiqueta.descripcion, textW)
-    const descLineH = 7.5 * 0.3528
+    const descLineH = 9.5 * 0.3528
     const descTotalH = descLines.length * descLineH
 
     // Centrar bloque verticalmente dentro del recuadro
@@ -65,12 +65,12 @@ export function generarEtiquetasPDF(etiquetas: Etiqueta[]): void {
 
     // Imprimir clave
     doc.setFont('helvetica', 'bold')
-    doc.setFontSize(13)
+    doc.setFontSize(26)
     doc.text(claveLines, x + LABEL_W / 2, startY, { align: 'center' })
 
     // Imprimir descripción
     doc.setFont('helvetica', 'normal')
-    doc.setFontSize(7.5)
+    doc.setFontSize(9.5)
     doc.text(descLines, x + LABEL_W / 2, startY + claveLineH * (claveLines.length - 1) + gapBetween + descLineH, { align: 'center' })
   })
 

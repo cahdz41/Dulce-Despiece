@@ -113,6 +113,7 @@ export default function FacturaDetalle({ factura, onVolver }: Props) {
             <Fila label="Vendedor" value={factura.vendedor} />
             <Fila label="Chofer" value={factura.chofer} />
             <Fila label="Hora de entrega" value={factura.horaEntrega || '—'} />
+            <Fila label="Lugar de entrega" value={factura.lugarEntrega || '—'} />
             {factura.descuento > 0 && (
               <Fila label="Autorizó descuento" value={factura.autorizaDescuento} />
             )}
