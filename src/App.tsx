@@ -3,10 +3,11 @@ import OrderForm from './components/OrderForm'
 import ResultView from './components/ResultView'
 import ImportButton from './components/ImportButton'
 import FacturasPage from './components/facturas/FacturasPage'
+import EtiquetasPage from './components/etiquetas/EtiquetasPage'
 import { INVENTARIO_BASE } from './data/inventory'
 import type { Cotizacion, Material } from './types'
 
-type Pantalla = 'pedido' | 'resultado' | 'facturas'
+type Pantalla = 'pedido' | 'resultado' | 'facturas' | 'etiquetas'
 
 export default function App() {
   const [pantalla, setPantalla]           = useState<Pantalla>('pedido')
@@ -98,6 +99,16 @@ export default function App() {
               >
                 Facturas
               </button>
+              <button
+                onClick={() => setPantalla('etiquetas')}
+                className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
+                  pantalla === 'etiquetas'
+                    ? 'bg-blue-500 text-white'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-700'
+                }`}
+              >
+                Etiquetas
+              </button>
             </nav>
           </div>
         </div>
@@ -150,6 +161,7 @@ export default function App() {
           <ResultView cotizacion={cotizacion} onNuevoPedido={handleNuevoPedido} />
         )}
         {pantalla === 'facturas' && <FacturasPage />}
+        {pantalla === 'etiquetas' && <EtiquetasPage />}
       </main>
     </div>
   )
