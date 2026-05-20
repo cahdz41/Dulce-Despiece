@@ -5,7 +5,7 @@ import type { Factura, EstatusFactura } from '../types/facturas'
 export function useFacturas() {
   const [facturas, setFacturas] = useState<Factura[]>([])
   const [cargando, setCargando] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error] = useState<string | null>(null)
 
   useEffect(() => {
     const unsub = suscribirFacturas(data => {
