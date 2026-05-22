@@ -197,6 +197,28 @@ function drawResumenHojas(doc: jsPDF, cotizacion: Cotizacion, y: number): number
   return y + 6
 }
 
+function drawDisclaimer(doc: jsPDF, y: number): number {
+  const texto =
+    'Revisar bien las cantidades y medidas de las piezas requeridas, ya que esta información es de carácter informativo y Vidrios el Castillo no se hace responsable si las medidas no son correctas, deben ser verificadas por el cliente.'
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(8.5)
+  const lines = doc.splitTextToSize(texto, COL_W - 8)
+  const boxH = lines.length * 4.2 + 8
+
+  // Fondo rojo claro + borde rojo
+  doc.setFillColor(254, 226, 226)
+  doc.setDrawColor(239, 68, 68)
+  doc.setLineWidth(0.6)
+  doc.roundedRect(MARGIN, y, COL_W, boxH, 2, 2, 'FD')
+
+  // Texto rojo oscuro
+  doc.setTextColor(185, 28, 28)
+  doc.text(lines, MARGIN + 4, y + 5.5)
+
+  return y + boxH + 4
+}
+
 function drawMetricas(doc: jsPDF, cotizacion: Cotizacion, y: number): number {
   const { tipo, optima, areaPiezas } = cotizacion.resultado
   let areaVendida = 0, desperdicio = 0, eficiencia = 0, nHojas = 0
@@ -382,6 +404,15 @@ export function generarPDF(cotizacion: Cotizacion): void {
   y = drawPiezasTable(doc, cotizacion, y)
   y = drawResumenHojas(doc, cotizacion, y)
   y = drawMetricas(doc, cotizacion, y)
+
+  // Leyenda de advertencia antes de los croquis
+  const disclaimerH = 28 // alto aproximado de la caja de advertencia
+  if (y + disclaimerH > A4H - 15) {
+    doc.addPage()
+    drawHeader(doc, cotizacion)
+    y = 28
+  }
+  y = drawDisclaimer(doc, y)
 
   // ── Páginas siguientes: un croquis por hoja ────────────────────────────────
   const { tipo, optima } = cotizacion.resultado

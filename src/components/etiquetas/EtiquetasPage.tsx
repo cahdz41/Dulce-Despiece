@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import * as XLSX from 'xlsx'
-import { generarEtiquetasPDF, type Etiqueta } from '../../utils/etiquetasPdf'
+import { generarEtiquetasPDF, type Etiqueta, type FormatoEtiquetas } from '../../utils/etiquetasPdf'
 
 interface EtiquetaRaw extends Etiqueta {
   colC: string
@@ -24,6 +24,7 @@ export default function EtiquetasPage() {
   const [generando, setGenerando] = useState(false)
   const [filtroC, setFiltroC] = useState('')
   const [filtroE, setFiltroE] = useState('')
+  const [formato, setFormato] = useState<FormatoEtiquetas>('18')
   const inputRef = useRef<HTMLInputElement>(null)
 
   function parsearExcel(buffer: ArrayBuffer): DatosExcel | null {
@@ -95,13 +96,14 @@ export default function EtiquetasPage() {
     : []
 
   const ambosSeleccionados = filtroC !== '' && filtroE !== ''
-  const totalPaginas = Math.ceil(etiquetasFiltradas.length / 18)
+  const POR_PAGINA: Record<FormatoEtiquetas, number> = { '18': 18, '4': 4, '1': 1 }
+  const totalPaginas = Math.ceil(etiquetasFiltradas.length / POR_PAGINA[formato])
 
   function handleGenerar() {
     if (!etiquetasFiltradas.length) return
     setGenerando(true)
     setTimeout(() => {
-      generarEtiquetasPDF(etiquetasFiltradas)
+      generarEtiquetasPDF(etiquetasFiltradas, formato)
       setGenerando(false)
     }, 50)
   }
@@ -189,6 +191,22 @@ export default function EtiquetasPage() {
             </div>
           </div>
 
+          {/* Formato de etiquetas */}
+          {ambosSeleccionados && etiquetasFiltradas.length > 0 && (
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1.5">Formato de etiquetas</label>
+              <select
+                value={formato}
+                onChange={e => setFormato(e.target.value as FormatoEtiquetas)}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-300"
+              >
+                <option value="18">18 etiquetas por hoja (A4 vertical)</option>
+                <option value="4">4 etiquetas por hoja (A4 horizontal)</option>
+                <option value="1">1 etiqueta grande por hoja (A4 horizontal)</option>
+              </select>
+            </div>
+          )}
+
           {/* Resultado del filtro */}
           {ambosSeleccionados && (
             <div className={`rounded-xl px-4 py-3 text-sm flex items-center gap-2 ${
@@ -263,10 +281,26 @@ export default function EtiquetasPage() {
       <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
         <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Formato del PDF</p>
         <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs text-slate-500">
-          <span>Tamaño de hoja</span><span className="text-slate-700">A4 · 21 × 29.7 cm</span>
-          <span>Distribución</span><span className="text-slate-700">2 columnas × 9 filas = 18 etiquetas</span>
-          <span>Tamaño por etiqueta</span><span className="text-slate-700">~98 mm × ~32 mm</span>
-          <span>Orientación</span><span className="text-slate-700">Vertical (Portrait)</span>
+          <span>Tamaño de hoja</span>
+          <span className="text-slate-700">
+            {formato === '18' ? 'A4 · 21 × 29.7 cm' : 'A4 · 29.7 × 21 cm'}
+          </span>
+          <span>Distribución</span>
+          <span className="text-slate-700">
+            {formato === '18' ? '2 columnas × 9 filas = 18 etiquetas'
+              : formato === '4' ? '2 columnas × 2 filas = 4 etiquetas'
+              : '1 etiqueta grande por hoja'}
+          </span>
+          <span>Tamaño por etiqueta</span>
+          <span className="text-slate-700">
+            {formato === '18' ? '~98 mm × ~32 mm'
+              : formato === '4' ? '~141 mm × ~98 mm'
+              : '~285 mm × ~198 mm'}
+          </span>
+          <span>Orientación</span>
+          <span className="text-slate-700">
+            {formato === '18' ? 'Vertical (Portrait)' : 'Horizontal (Landscape)'}
+          </span>
         </div>
       </div>
     </div>

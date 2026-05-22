@@ -1,22 +1,19 @@
 import { useRef, useState } from 'react'
-import { finalizarFactura } from '../../services/firestore'
+import { actualizarFotoFactura } from '../../services/firestore'
 import { subirFotoFactura } from '../../services/cloudinary'
 
 interface Props {
   facturaId: string
   numeroFactura: string
-  tipoPago: string
-  montoTransferencia: number
-  estatusTransferencia: string
+  fotoActualUrl?: string
   onClose: () => void
-  onFinalizada: () => void
+  onActualizada: () => void
 }
 
-export default function FinalizarModal({ facturaId, numeroFactura, tipoPago, montoTransferencia, estatusTransferencia, onClose, onFinalizada }: Props) {
+export default function CambiarFotoModal({ facturaId, numeroFactura, fotoActualUrl, onClose, onActualizada }: Props) {
   const [archivo, setArchivo] = useState<File | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
   const [guardando, setGuardando] = useState(false)
-  const [progreso, setProgreso] = useState<'idle' | 'comprimiendo' | 'subiendo' | 'guardando'>('idle')
   const [error, setError] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -35,67 +32,53 @@ export default function FinalizarModal({ facturaId, numeroFactura, tipoPago, mon
     if (inputRef.current) inputRef.current.value = ''
   }
 
-  async function handleFinalizar() {
-    setError('')
-
-    const requiereTransfConfirmada =
-      tipoPago === 'transferencia' ||
-      (tipoPago === 'mixto' && montoTransferencia > 0)
-    if (requiereTransfConfirmada && estatusTransferencia !== 'confirmada') {
-      setError('No se puede finalizar la factura hasta que la transferencia esté confirmada.')
+  async function handleGuardar() {
+    if (!archivo) {
+      setError('Selecciona una foto primero')
       return
     }
-
+    setError('')
     setGuardando(true)
     try {
-      let fotoUrl: string | undefined
-      let fotoPublicId: string | undefined
-
-      if (archivo) {
-        setProgreso('comprimiendo')
-        const resultado = await subirFotoFactura(archivo)
-        fotoUrl = resultado.url
-        fotoPublicId = resultado.publicId
-      }
-
-      setProgreso('guardando')
-      await finalizarFactura(facturaId, fotoUrl, fotoPublicId)
-      onFinalizada()
+      const resultado = await subirFotoFactura(archivo)
+      await actualizarFotoFactura(facturaId, resultado.url, resultado.publicId)
+      onActualizada()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al finalizar. Verifica tu conexión.')
+      setError(err instanceof Error ? err.message : 'Error al actualizar la foto')
     } finally {
       setGuardando(false)
-      setProgreso('idle')
     }
-  }
-
-  const mensajeProgreso: Record<string, string> = {
-    comprimiendo: 'Comprimiendo foto...',
-    subiendo: 'Subiendo foto...',
-    guardando: 'Guardando factura...',
   }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
         <div className="px-6 py-5">
-          {/* Encabezado */}
           <div className="flex items-center gap-3 mb-5">
-            <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-              <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+            <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" />
               </svg>
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-800">Finalizar Factura #{numeroFactura}</h2>
-              <p className="text-xs text-slate-500">El chofer entregó la factura firmada por el cliente</p>
+              <h2 className="text-base font-bold text-slate-800">Cambiar foto</h2>
+              <p className="text-xs text-slate-500">Factura #{numeroFactura}</p>
             </div>
           </div>
 
-          {/* Sección de foto */}
+          {/* Foto actual */}
+          {fotoActualUrl && !preview && (
+            <div className="mb-4">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Foto actual</p>
+              <img src={fotoActualUrl} alt="Foto actual" className="w-full max-h-48 object-cover rounded-xl border border-slate-200" />
+            </div>
+          )}
+
+          {/* Nueva foto */}
           <div className="mb-4">
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
-              Foto de factura firmada <span className="normal-case font-normal text-slate-400">(opcional)</span>
+              {fotoActualUrl ? 'Nueva foto' : 'Foto de factura firmada'}
             </p>
 
             {!preview ? (
@@ -137,7 +120,6 @@ export default function FinalizarModal({ facturaId, numeroFactura, tipoPago, mon
               </div>
             )}
 
-            {/* Input oculto: acepta cámara en móvil y archivo en escritorio */}
             <input
               ref={inputRef}
               type="file"
@@ -147,14 +129,6 @@ export default function FinalizarModal({ facturaId, numeroFactura, tipoPago, mon
               className="hidden"
             />
           </div>
-
-          {/* Progreso */}
-          {guardando && progreso !== 'idle' && (
-            <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 mb-4">
-              <div className="w-4 h-4 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin flex-shrink-0" />
-              <span className="text-sm text-blue-700">{mensajeProgreso[progreso]}</span>
-            </div>
-          )}
 
           {error && (
             <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-4">{error}</p>
@@ -170,12 +144,12 @@ export default function FinalizarModal({ facturaId, numeroFactura, tipoPago, mon
             Cancelar
           </button>
           <button
-            onClick={handleFinalizar}
-            disabled={guardando}
-            className="px-5 py-2 rounded-lg text-sm font-semibold bg-green-600 hover:bg-green-700 text-white transition-colors disabled:opacity-60 flex items-center gap-2"
+            onClick={handleGuardar}
+            disabled={guardando || !archivo}
+            className="px-5 py-2 rounded-lg text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-60 flex items-center gap-2"
           >
             {guardando && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
-            {guardando ? mensajeProgreso[progreso] || 'Procesando...' : 'Confirmar Finalización'}
+            {guardando ? 'Guardando...' : 'Guardar cambios'}
           </button>
         </div>
       </div>

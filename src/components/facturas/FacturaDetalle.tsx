@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { Factura } from '../../types/facturas'
 import FinalizarModal from './FinalizarModal'
 import CancelarModal from './CancelarModal'
+import CambiarFotoModal from './CambiarFotoModal'
 import { actualizarEstatusTransferencia } from '../../services/firestore'
 import type { EstatusTransferencia } from '../../types/facturas'
 
@@ -35,6 +36,7 @@ function Fila({ label, value }: { label: string; value?: string | number | null 
 export default function FacturaDetalle({ factura, onVolver }: Props) {
   const [showFinalizar, setShowFinalizar] = useState(false)
   const [showCancelar, setShowCancelar] = useState(false)
+  const [showCambiarFoto, setShowCambiarFoto] = useState(false)
   const [actualizandoTransf, setActualizandoTransf] = useState(false)
 
   const fecha = factura.fechaCreacion?.toDate?.()
@@ -66,6 +68,12 @@ export default function FacturaDetalle({ factura, onVolver }: Props) {
 
   const tieneEfectivo = factura.tipoPago === 'efectivo' || factura.tipoPago === 'mixto'
   const tieneTransferencia = factura.tipoPago === 'transferencia' || factura.tipoPago === 'mixto'
+
+  const requiereTransferenciaConfirmada =
+    factura.tipoPago === 'transferencia' ||
+    (factura.tipoPago === 'mixto' && factura.montoTransferencia > 0)
+  const transferenciaConfirmada = factura.estatusTransferencia === 'confirmada'
+  const puedeFinalizar = !requiereTransferenciaConfirmada || transferenciaConfirmada
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -184,7 +192,19 @@ export default function FacturaDetalle({ factura, onVolver }: Props) {
             </div>
             {factura.fotoFacturaUrl && (
               <div className="px-6 pb-4">
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Factura firmada</p>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Factura firmada</p>
+                  <button
+                    onClick={() => setShowCambiarFoto(true)}
+                    className="text-xs font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" />
+                    </svg>
+                    Cambiar foto
+                  </button>
+                </div>
                 <a href={factura.fotoFacturaUrl} target="_blank" rel="noopener noreferrer" className="block group">
                   <img
                     src={factura.fotoFacturaUrl}
@@ -215,16 +235,31 @@ export default function FacturaDetalle({ factura, onVolver }: Props) {
 
       {/* Acciones (solo si está pendiente) */}
       {factura.estatus === 'pendiente' && (
-        <div className="flex gap-3">
-          <button
-            onClick={() => setShowFinalizar(true)}
-            className="flex-1 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-semibold text-sm transition-colors shadow-sm"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-            </svg>
-            Finalizar Factura
-          </button>
+        <div className="space-y-3">
+          {requiereTransferenciaConfirmada && !transferenciaConfirmada && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3 flex items-start gap-2.5">
+              <svg className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+              </svg>
+              <div>
+                <p className="text-sm font-semibold text-yellow-800">Transferencia pendiente de confirmación</p>
+                <p className="text-xs text-yellow-700 mt-0.5">
+                  No se puede finalizar la factura hasta que la transferencia esté confirmada. Usa los botones de arriba para marcarla como confirmada.
+                </p>
+              </div>
+            </div>
+          )}
+          <div className="flex gap-3">
+            <button
+              onClick={() => setShowFinalizar(true)}
+              disabled={!puedeFinalizar}
+              className="flex-1 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 disabled:bg-green-300 text-white py-3 rounded-xl font-semibold text-sm transition-colors shadow-sm disabled:cursor-not-allowed"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+              </svg>
+              Finalizar Factura
+            </button>
           <button
             onClick={() => setShowCancelar(true)}
             className="flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 py-3 px-5 rounded-xl font-semibold text-sm transition-colors"
@@ -235,14 +270,28 @@ export default function FacturaDetalle({ factura, onVolver }: Props) {
             Cancelar
           </button>
         </div>
+      </div>
       )}
 
       {showFinalizar && (
         <FinalizarModal
           facturaId={factura.id}
           numeroFactura={factura.numeroFactura}
+          tipoPago={factura.tipoPago}
+          montoTransferencia={factura.montoTransferencia}
+          estatusTransferencia={factura.estatusTransferencia}
           onClose={() => setShowFinalizar(false)}
           onFinalizada={() => { setShowFinalizar(false); onVolver() }}
+        />
+      )}
+
+      {showCambiarFoto && (
+        <CambiarFotoModal
+          facturaId={factura.id}
+          numeroFactura={factura.numeroFactura}
+          fotoActualUrl={factura.fotoFacturaUrl}
+          onClose={() => setShowCambiarFoto(false)}
+          onActualizada={() => setShowCambiarFoto(false)}
         />
       )}
 

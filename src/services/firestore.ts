@@ -65,6 +65,16 @@ export async function cancelarFactura(
   })
 }
 
+export async function actualizarFotoFactura(
+  id: string,
+  fotoUrl?: string,
+  fotoPublicId?: string
+): Promise<void> {
+  await updateDoc(doc(db, COL, id), {
+    ...(fotoUrl ? { fotoFacturaUrl: fotoUrl, fotoFacturaPublicId: fotoPublicId } : {}),
+  })
+}
+
 export async function actualizarEstatusTransferencia(
   id: string,
   estatus: EstatusTransferencia
