@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import { optimizar } from '../core/optimizer'
 import type { Cotizacion, Material, PiezaSolicitada } from '../types'
+import ImportarPiezasModal from './ImportarPiezasModal'
+import type { PiezaImportada } from '../utils/excelImport'
 
 interface FilaPieza {
   id: number
@@ -37,8 +39,9 @@ export default function OrderForm({ inventario, numeroCotizacion, onCotizacion, 
     }
     return [{ id: nextId++, ancho: '', alto: '', cantidad: '1' }]
   })
-  const [error, setError]         = useState<string>('')
-  const [calculando, setCalculando] = useState(false)
+  const [error, setError]             = useState<string>('')
+  const [calculando, setCalculando]   = useState(false)
+  const [showImportModal, setShowImportModal] = useState(false)
 
   // Opciones de material derivadas del inventario activo
   const { VIDRIO_OPS, ESPEJO_OPS } = useMemo(() => {
@@ -61,6 +64,21 @@ export default function OrderForm({ inventario, numeroCotizacion, onCotizacion, 
 
   function agregarFila() {
     setFilas(f => [...f, { id: nextId++, ancho: '', alto: '', cantidad: '1' }])
+  }
+
+  function aplicarPiezasImportadas(importadas: PiezaImportada[]) {
+    const nuevasFilas = importadas.map(p => ({
+      id:       nextId++,
+      ancho:    String(p.ancho),
+      alto:     String(p.alto),
+      cantidad: String(p.cantidad),
+    }))
+    setFilas(f => {
+      // Si la tabla solo tiene la fila vacía inicial, reemplazarla
+      const soloVacia = f.length === 1 && f[0].ancho === '' && f[0].alto === ''
+      return soloVacia ? nuevasFilas : [...f, ...nuevasFilas]
+    })
+    setShowImportModal(false)
   }
 
   function eliminarFila(id: number) {
@@ -246,10 +264,19 @@ export default function OrderForm({ inventario, numeroCotizacion, onCotizacion, 
           ))}
         </div>
 
-        <button onClick={agregarFila}
-          className="mt-3 flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 font-medium">
-          <span className="text-lg leading-none">+</span> Agregar pieza
-        </button>
+        <div className="mt-3 flex items-center gap-4">
+          <button onClick={agregarFila}
+            className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 font-medium">
+            <span className="text-lg leading-none">+</span> Agregar pieza
+          </button>
+          <button onClick={() => setShowImportModal(true)}
+            className="flex items-center gap-1.5 text-sm text-green-700 hover:text-green-800 font-medium border border-green-300 hover:border-green-400 rounded-lg px-3 py-1.5 hover:bg-green-50 transition-colors">
+            <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor">
+              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm-1 1.5L18.5 9H13V3.5zM8.5 16l-1.5-2.5L5.5 16H4l2.25-3.5L4 9h1.5l1.5 2.5L8.5 9H10L7.75 12.5 10 16H8.5zm4.5 0h-1.25l-1-5.5h1.25l.5 3.5.5-3.5H14l-1 5.5z"/>
+            </svg>
+            Importar desde Excel
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -265,6 +292,13 @@ export default function OrderForm({ inventario, numeroCotizacion, onCotizacion, 
           {calculando ? 'Calculando...' : 'Calcular Optimización'}
         </button>
       </div>
+
+      {showImportModal && (
+        <ImportarPiezasModal
+          onAplicar={aplicarPiezasImportadas}
+          onCerrar={() => setShowImportModal(false)}
+        />
+      )}
     </div>
   )
 }

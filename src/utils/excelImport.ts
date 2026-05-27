@@ -80,6 +80,71 @@ export interface ResultadoImportacion {
   errores: string[]
 }
 
+// ── Importación de piezas de despiece ─────────────────────────────────────────
+
+export interface PiezaImportada {
+  cantidad: number
+  ancho: number   // metros
+  alto: number    // metros
+}
+
+export interface ResultadoPiezasImportadas {
+  piezas: PiezaImportada[]
+  errores: string[]
+}
+
+/**
+ * Lee un Excel con formato: Col A = cantidad, Col B = ancho, Col C = alto.
+ * Si `unidad` es 'cm', convierte a metros dividiendo entre 100.
+ * Ignora filas de encabezado (donde la primera celda no sea numérica) y filas vacías.
+ */
+export function parsearPiezasDespiece(
+  buffer: ArrayBuffer,
+  unidad: 'cm' | 'm' = 'm'
+): ResultadoPiezasImportadas {
+  const wb = XLSX.read(buffer, { type: 'array' })
+  const ws = wb.Sheets[wb.SheetNames[0]]
+  const filas = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1 }) as unknown[][]
+
+  const piezas: PiezaImportada[] = []
+  const errores: string[] = []
+  const factor = unidad === 'cm' ? 0.01 : 1
+
+  filas.forEach((fila, i) => {
+    const cantidadRaw = fila[0]
+    const anchoRaw    = fila[1]
+    const altoRaw     = fila[2]
+
+    // Saltar filas completamente vacías
+    if (cantidadRaw == null && anchoRaw == null && altoRaw == null) return
+
+    const cantidad = typeof cantidadRaw === 'number'
+      ? cantidadRaw
+      : parseFloat(String(cantidadRaw ?? '').replace(',', '.'))
+    const ancho = typeof anchoRaw === 'number'
+      ? anchoRaw
+      : parseFloat(String(anchoRaw ?? '').replace(',', '.'))
+    const alto = typeof altoRaw === 'number'
+      ? altoRaw
+      : parseFloat(String(altoRaw ?? '').replace(',', '.'))
+
+    // Saltar encabezados (primera celda no numérica)
+    if (isNaN(cantidad)) return
+
+    if (isNaN(ancho) || ancho <= 0)    { errores.push(`Fila ${i + 1}: ancho inválido`);    return }
+    if (isNaN(alto)  || alto  <= 0)    { errores.push(`Fila ${i + 1}: alto inválido`);     return }
+    if (cantidad < 1 || !Number.isFinite(cantidad)) { errores.push(`Fila ${i + 1}: cantidad inválida`); return }
+
+    piezas.push({
+      cantidad: Math.round(cantidad),
+      ancho: parseFloat((ancho * factor).toFixed(4)),
+      alto:  parseFloat((alto  * factor).toFixed(4)),
+    })
+  })
+
+  return { piezas, errores }
+}
+
 /** Parsea un archivo Excel (.xlsx) y devuelve los materiales VIDRIO/ESPEJO */
 export function parsearExcel(buffer: ArrayBuffer): ResultadoImportacion {
   const wb = XLSX.read(buffer, { type: 'array' })

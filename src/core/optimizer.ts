@@ -203,6 +203,10 @@ interface Particion {
   enB: PiezaExpandida[]
 }
 
+// Límite de particiones para evitar explosión combinatoria con pedidos grandes.
+// Con 30 tipos distintos sin límite = 2^30 ≈ 1 mil millones de iteraciones → OOM.
+const MAX_PARTICIONES = 512
+
 function generarParticiones(tipos: TipoPieza[]): Particion[] {
   if (tipos.length === 0) return [{ enA: [], enB: [] }]
 
@@ -215,6 +219,7 @@ function generarParticiones(tipos: TipoPieza[]): Particion[] {
   }
 
   function recur(idx: number, parcialA: PiezaExpandida[], parcialB: PiezaExpandida[]) {
+    if (resultado.length >= MAX_PARTICIONES) return
     if (idx === tipos.length) {
       resultado.push({ enA: [...parcialA], enB: [...parcialB] })
       return
@@ -222,6 +227,7 @@ function generarParticiones(tipos: TipoPieza[]): Particion[] {
     const tipo = tipos[idx]
     // Probar cuántas piezas de este tipo van a A (de 0 a total)
     for (let k = 0; k <= tipo.total; k++) {
+      if (resultado.length >= MAX_PARTICIONES) return
       recur(
         idx + 1,
         [...parcialA, ...expandir(tipo, k)],
