@@ -4,10 +4,12 @@ import ResultView from './components/ResultView'
 import ImportButton from './components/ImportButton'
 import FacturasPage from './components/facturas/FacturasPage'
 import EtiquetasPage from './components/etiquetas/EtiquetasPage'
+import DespiecesPage from './components/despieces/DespiecesPage'
+import { guardarDespiece, actualizarDespiece } from './services/despiecesFirestore'
 import { INVENTARIO_BASE } from './data/inventory'
-import type { Cotizacion, Material } from './types'
+import type { Cotizacion, Material, PiezaSolicitada } from './types'
 
-type Pantalla = 'pedido' | 'resultado' | 'facturas' | 'etiquetas'
+type Pantalla = 'pedido' | 'resultado' | 'facturas' | 'etiquetas' | 'despieces'
 
 export default function App() {
   const [pantalla, setPantalla]           = useState<Pantalla>('pedido')
@@ -16,6 +18,15 @@ export default function App() {
   const [inventario, setInventario]       = useState<Material[]>(INVENTARIO_BASE)
   const [fechaImport, setFechaImport]     = useState<Date | null>(null)
   const [showImport, setShowImport]       = useState(false)
+  const [guardando, setGuardando]         = useState(false)
+  const [editandoId, setEditandoId]       = useState<string | null>(null)
+  const [formKey, setFormKey]             = useState(0)
+  const [mensaje, setMensaje]             = useState<{ texto: string; tipo: 'exito' | 'error' } | null>(null)
+  const [initialData, setInitialData]     = useState<{
+    clienteNombre: string
+    materialKey: string
+    piezas: PiezaSolicitada[]
+  } | null>(null)
 
   function handleCotizacion(c: Cotizacion) {
     setCotizacion(c)
@@ -25,13 +36,73 @@ export default function App() {
   function handleNuevoPedido() {
     setPantalla('pedido')
     setCotizacion(null)
-    setNumeroCot(n => n + 1)
+    setEditandoId(null)
+    setInitialData(null)
+    setFormKey(k => k + 1)
+    if (!editandoId) {
+      setNumeroCot(n => n + 1)
+    }
   }
 
   function handleImportado(materiales: Material[], fecha: Date) {
     setInventario(materiales)
     setFechaImport(fecha)
     setShowImport(false)
+  }
+
+  async function handleGuardarCotizacion(c: Cotizacion, pdfBase64: string) {
+    setGuardando(true)
+    try {
+      const input = {
+        clienteNombre: c.clienteNombre,
+        materialLabel: c.materialLabel,
+        materialGrupo: c.materialGrupo,
+        materialKey: c.materialKey,
+        piezas: c.piezas,
+        resultado: c.resultado,
+        pdfBase64,
+        numero: c.numero,
+      }
+
+      if (editandoId) {
+        await actualizarDespiece(editandoId, input)
+        setMensaje({ texto: 'Despiece actualizado correctamente.', tipo: 'exito' })
+        setEditandoId(null)
+        setInitialData(null)
+      } else {
+        await guardarDespiece(input)
+        setMensaje({ texto: 'Cotización guardada correctamente.', tipo: 'exito' })
+      }
+
+      setPantalla('despieces')
+      setCotizacion(null)
+
+      setTimeout(() => setMensaje(null), 4000)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error desconocido'
+      setMensaje({ texto: `Error al guardar: ${msg}`, tipo: 'error' })
+    } finally {
+      setGuardando(false)
+    }
+  }
+
+  function handleEditarDespiece(data: {
+    id: string
+    clienteNombre: string
+    materialKey: string
+    piezas: PiezaSolicitada[]
+    numero: number
+  }) {
+    setEditandoId(data.id)
+    setNumeroCot(data.numero)
+    setInitialData({
+      clienteNombre: data.clienteNombre,
+      materialKey: data.materialKey,
+      piezas: data.piezas,
+    })
+    setFormKey(k => k + 1)
+    setCotizacion(null)
+    setPantalla('pedido')
   }
 
   return (
@@ -88,6 +159,16 @@ export default function App() {
                 }`}
               >
                 Resultado
+              </button>
+              <button
+                onClick={() => setPantalla('despieces')}
+                className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
+                  pantalla === 'despieces'
+                    ? 'bg-blue-500 text-white'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-700'
+                }`}
+              >
+                Despieces
               </button>
               <button
                 onClick={() => setPantalla('facturas')}
@@ -150,15 +231,37 @@ export default function App() {
 
       {/* Contenido */}
       <main className="max-w-6xl mx-auto px-4 py-6">
+        {/* Toast de notificación */}
+        {mensaje && (
+          <div className={`mb-4 px-4 py-3 rounded-lg text-sm font-medium flex items-center justify-between ${
+            mensaje.tipo === 'exito'
+              ? 'bg-green-50 border border-green-200 text-green-700'
+              : 'bg-red-50 border border-red-200 text-red-700'
+          }`}>
+            <span>{mensaje.texto}</span>
+            <button onClick={() => setMensaje(null)} className="ml-3 text-current opacity-60 hover:opacity-100">&times;</button>
+          </div>
+        )}
+
         {pantalla === 'pedido' && (
           <OrderForm
+            key={formKey}
             inventario={inventario}
             numeroCotizacion={numeroCotizacion}
             onCotizacion={handleCotizacion}
+            initialData={initialData}
           />
         )}
         {pantalla === 'resultado' && cotizacion && (
-          <ResultView cotizacion={cotizacion} onNuevoPedido={handleNuevoPedido} />
+          <ResultView
+            cotizacion={cotizacion}
+            onNuevoPedido={handleNuevoPedido}
+            onGuardarCotizacion={handleGuardarCotizacion}
+            guardando={guardando}
+          />
+        )}
+        {pantalla === 'despieces' && (
+          <DespiecesPage onEditar={handleEditarDespiece} />
         )}
         {pantalla === 'facturas' && <FacturasPage />}
         {pantalla === 'etiquetas' && <EtiquetasPage />}

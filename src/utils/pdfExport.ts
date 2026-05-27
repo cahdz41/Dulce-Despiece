@@ -221,7 +221,7 @@ function drawDisclaimer(doc: jsPDF, y: number): number {
 
 function drawMetricas(doc: jsPDF, cotizacion: Cotizacion, y: number): number {
   const { tipo, optima, areaPiezas } = cotizacion.resultado
-  let areaVendida = 0, desperdicio = 0, eficiencia = 0, nHojas = 0
+  let areaVendida: number, desperdicio: number, eficiencia: number, nHojas: number
 
   if (tipo === 'mono') {
     const s = optima as SolucionMono
@@ -391,9 +391,9 @@ function drawCroquis(
   return y + totalH + 6
 }
 
-// ── Punto de entrada público ──────────────────────────────────────────────────
+// ── Construir el documento PDF ────────────────────────────────────────────────
 
-export function generarPDF(cotizacion: Cotizacion): void {
+function construirPDF(cotizacion: Cotizacion): jsPDF {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   doc.setLineWidth(0.3)
 
@@ -406,7 +406,7 @@ export function generarPDF(cotizacion: Cotizacion): void {
   y = drawMetricas(doc, cotizacion, y)
 
   // Leyenda de advertencia antes de los croquis
-  const disclaimerH = 28 // alto aproximado de la caja de advertencia
+  const disclaimerH = 28
   if (y + disclaimerH > A4H - 15) {
     doc.addPage()
     drawHeader(doc, cotizacion)
@@ -425,7 +425,6 @@ export function generarPDF(cotizacion: Cotizacion): void {
   for (const sol of solucionesMono) {
     for (let i = 0; i < sol.layouts.length; i++) {
       hojaNum++
-      // Calcular altura del croquis para decidir si cabe en la página actual
       const altoHoja = sol.superficie.alto
       const anchoHoja = sol.superficie.ancho
       const escala = Math.min((COL_W * 0.62) / anchoHoja, 80 / altoHoja)
@@ -451,10 +450,24 @@ export function generarPDF(cotizacion: Cotizacion): void {
     doc.text(`Pág. ${p} / ${total}`, A4W - MARGIN, A4H - 6, { align: 'right' })
   }
 
-  // ── Descargar ──────────────────────────────────────────────────────────────
+  return doc
+}
+
+// ── Punto de entrada público: descarga directa ────────────────────────────────
+
+export function generarPDF(cotizacion: Cotizacion): void {
+  const doc = construirPDF(cotizacion)
+
   const fecha = cotizacion.fecha.toISOString().slice(0, 10)
   const cliente = cotizacion.clienteNombre
     ? `_${cotizacion.clienteNombre.replace(/\s+/g, '_')}`
     : ''
   doc.save(`cotizacion_${String(cotizacion.numero).padStart(4, '0')}${cliente}_${fecha}.pdf`)
+}
+
+// ── Obtener PDF como base64 (para guardar en Firestore) ───────────────────────
+
+export function generarPDFBase64(cotizacion: Cotizacion): string {
+  const doc = construirPDF(cotizacion)
+  return doc.output('datauristring')
 }

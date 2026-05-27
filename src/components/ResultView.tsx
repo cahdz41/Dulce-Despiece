@@ -1,5 +1,5 @@
 import CutDiagram from './CutDiagram'
-import { generarPDF } from '../utils/pdfExport'
+import { generarPDF, generarPDFBase64 } from '../utils/pdfExport'
 import { fmt } from '../utils/format'
 import type { Cotizacion, SolucionMono, SolucionCombinada, TipoFraccion } from '../types'
 
@@ -15,9 +15,11 @@ function tipoNombre(tipo: TipoFraccion): string {
 interface Props {
   cotizacion: Cotizacion
   onNuevoPedido: () => void
+  onGuardarCotizacion: (c: Cotizacion, pdfBase64: string) => void
+  guardando?: boolean
 }
 
-export default function ResultView({ cotizacion, onNuevoPedido }: Props) {
+export default function ResultView({ cotizacion, onNuevoPedido, onGuardarCotizacion, guardando }: Props) {
   const { resultado } = cotizacion
   const { tipo, optima, alternativas, areaPiezas } = resultado
 
@@ -33,9 +35,9 @@ export default function ResultView({ cotizacion, onNuevoPedido }: Props) {
   }
 
   const hojas: HojaMostrar[] = []
-  let areaVendidaTotal = 0
-  let desperdicioTotal = 0
-  let eficienciaGlobal = 0
+  let areaVendidaTotal: number
+  let desperdicioTotal: number
+  let eficienciaGlobal: number
 
   if (tipo === 'mono') {
     const sol = optima as SolucionMono
@@ -106,6 +108,21 @@ export default function ResultView({ cotizacion, onNuevoPedido }: Props) {
               <path d="M4 20h16v-2H4v2z"/>
             </svg>
             Descargar PDF
+          </button>
+          <button
+            onClick={() => {
+              const pdfBase64 = generarPDFBase64(cotizacion)
+              onGuardarCotizacion(cotizacion, pdfBase64)
+            }}
+            disabled={guardando}
+            className="flex items-center gap-2 bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white text-sm font-medium px-4 py-2 rounded-lg shadow transition-colors"
+          >
+            <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
+              <polyline points="17 21 17 13 7 13 7 21"/>
+              <polyline points="7 3 7 8 15 8"/>
+            </svg>
+            {guardando ? 'Guardando...' : 'Guardar cotización'}
           </button>
           <button
             onClick={onNuevoPedido}

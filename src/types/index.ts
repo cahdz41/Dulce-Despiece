@@ -35,6 +35,7 @@ export interface Cotizacion {
   fecha: Date
   clienteNombre: string
   materialLabel: string   // ej. "Claro 6mm"
+  materialKey: string     // ej. "CLARO|6|INCOLORO"
   materialGrupo: 'VIDRIO' | 'ESPEJO'
   piezas: PiezaSolicitada[]
   resultado: ResultadoOptimizacion

@@ -13,17 +13,30 @@ interface Props {
   inventario: Material[]
   numeroCotizacion: number
   onCotizacion: (c: Cotizacion) => void
+  initialData?: {
+    clienteNombre: string
+    materialKey: string
+    piezas: PiezaSolicitada[]
+  } | null
 }
 
 let nextId = 1
 
-export default function OrderForm({ inventario, numeroCotizacion, onCotizacion }: Props) {
-  const [clienteNombre, setClienteNombre] = useState('')
-  const [materialKey, setMaterialKey]     = useState<string>('')
+export default function OrderForm({ inventario, numeroCotizacion, onCotizacion, initialData }: Props) {
+  const [clienteNombre, setClienteNombre] = useState(initialData?.clienteNombre ?? '')
+  const [materialKey, setMaterialKey]     = useState(initialData?.materialKey ?? '')
   const [kerf, setKerf]                   = useState<string>('2')
-  const [filas, setFilas]                 = useState<FilaPieza[]>([
-    { id: nextId++, ancho: '', alto: '', cantidad: '1' },
-  ])
+  const [filas, setFilas]                 = useState<FilaPieza[]>(() => {
+    if (initialData?.piezas && initialData.piezas.length > 0) {
+      return initialData.piezas.map(p => ({
+        id: nextId++,
+        ancho: String(p.ancho),
+        alto: String(p.alto),
+        cantidad: String(p.cantidad),
+      }))
+    }
+    return [{ id: nextId++, ancho: '', alto: '', cantidad: '1' }]
+  })
   const [error, setError]         = useState<string>('')
   const [calculando, setCalculando] = useState(false)
 
@@ -98,6 +111,7 @@ export default function OrderForm({ inventario, numeroCotizacion, onCotizacion }
             fecha:         new Date(),
             clienteNombre: clienteNombre.trim(),
             materialLabel: opSeleccionada?.label ?? materialKey,
+            materialKey,
             materialGrupo: (opSeleccionada?.grupo ?? 'VIDRIO') as 'VIDRIO' | 'ESPEJO',
             piezas,
             resultado,
@@ -118,8 +132,14 @@ export default function OrderForm({ inventario, numeroCotizacion, onCotizacion }
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold text-slate-800">Nuevo Pedido</h2>
-        <p className="text-sm text-slate-500 mt-0.5">Ingresa el material y las medidas de las piezas solicitadas.</p>
+        <h2 className="text-xl font-semibold text-slate-800">
+          {initialData ? 'Modificar Despiece' : 'Nuevo Pedido'}
+        </h2>
+        <p className="text-sm text-slate-500 mt-0.5">
+          {initialData
+            ? 'Modifica las piezas y recalcula con el inventario actual.'
+            : 'Ingresa el material y las medidas de las piezas solicitadas.'}
+        </p>
       </div>
 
       {/* Nombre del cliente */}
