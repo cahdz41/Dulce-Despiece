@@ -1,8 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useRef, useMemo, useState } from 'react'
 import { optimizar } from '../core/optimizer'
 import type { Cotizacion, Material, PiezaSolicitada } from '../types'
 import ImportarPiezasModal from './ImportarPiezasModal'
 import type { PiezaImportada } from '../utils/excelImport'
+import { extraerPiezasDeImagen } from '../services/gemini'
+import type { PiezaExtraida } from '../services/gemini'
 
 interface FilaPieza {
   id: number
@@ -43,6 +45,14 @@ export default function OrderForm({ inventario, numeroCotizacion, onCotizacion, 
   const [calculando, setCalculando]   = useState(false)
   const [showImportModal, setShowImportModal] = useState(false)
 
+  const inputImagenRef                              = useRef<HTMLInputElement>(null)
+  const [imagenPreview, setImagenPreview]           = useState<string>('')
+  const [analizando, setAnalizando]                 = useState(false)
+  const [piezasExtraidas, setPiezasExtraidas]       = useState<PiezaExtraida[] | null>(null)
+  const [errorExtraccion, setErrorExtraccion]       = useState<string>('')
+  const [advertenciaExtr, setAdvertenciaExtr]       = useState<string>('')
+  const [unidadImagen, setUnidadImagen]             = useState<'m' | 'cm' | 'mm'>('cm')
+
   // Opciones de material derivadas del inventario activo
   const { VIDRIO_OPS, ESPEJO_OPS } = useMemo(() => {
     type Op = { grupo: string; subclasif: string; grosorMm: number; color: string; label: string }
@@ -64,6 +74,54 @@ export default function OrderForm({ inventario, numeroCotizacion, onCotizacion, 
 
   function agregarFila() {
     setFilas(f => [...f, { id: nextId++, ancho: '', alto: '', cantidad: '1' }])
+  }
+
+  async function handleImagenSeleccionada(e: React.ChangeEvent<HTMLInputElement>) {
+    const archivo = e.target.files?.[0]
+    if (!archivo) return
+
+    setImagenPreview(URL.createObjectURL(archivo))
+    setPiezasExtraidas(null)
+    setErrorExtraccion('')
+    setAdvertenciaExtr('')
+    setAnalizando(true)
+
+    const resultado = await extraerPiezasDeImagen(archivo, unidadImagen)
+    setAnalizando(false)
+
+    if (resultado.error && resultado.piezas.length === 0) {
+      setErrorExtraccion(resultado.error)
+    } else if (resultado.piezas.length > 0) {
+      setPiezasExtraidas(resultado.piezas)
+      if (resultado.error) setAdvertenciaExtr(resultado.error)
+    }
+
+    // Limpiar el input para permitir subir la misma imagen de nuevo
+    if (inputImagenRef.current) inputImagenRef.current.value = ''
+  }
+
+  function aplicarPiezasExtraidas() {
+    if (!piezasExtraidas) return
+    const nuevasFilas = piezasExtraidas.map(p => ({
+      id:       nextId++,
+      ancho:    String(p.ancho),
+      alto:     String(p.alto),
+      cantidad: String(p.cantidad),
+    }))
+    setFilas(f => {
+      const soloVacia = f.length === 1 && f[0].ancho === '' && f[0].alto === ''
+      return soloVacia ? nuevasFilas : [...f, ...nuevasFilas]
+    })
+    setPiezasExtraidas(null)
+    setImagenPreview('')
+    setErrorExtraccion('')
+    setAdvertenciaExtr('')
+  }
+
+  function descartarExtraccion() {
+    setPiezasExtraidas(null)
+    setErrorExtraccion('')
+    setAdvertenciaExtr('')
   }
 
   function aplicarPiezasImportadas(importadas: PiezaImportada[]) {
@@ -234,6 +292,132 @@ export default function OrderForm({ inventario, numeroCotizacion, onCotizacion, 
           <h3 className="font-medium text-slate-700">Piezas solicitadas</h3>
           <span className="text-xs text-slate-400">Medidas en metros</span>
         </div>
+
+        {/* Detección con IA */}
+        <div className="mb-5 rounded-xl bg-gradient-to-r from-violet-500 via-purple-500 to-indigo-500 p-px shadow-md">
+          <div className="rounded-xl bg-white px-4 py-4">
+
+            {/* Encabezado */}
+            <div className="flex items-center gap-2 mb-3">
+              <svg className="w-5 h-5 text-violet-500" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2l1.5 4.5H18l-3.75 2.7 1.5 4.5L12 11.1l-3.75 2.6 1.5-4.5L6 6.5h4.5L12 2z"/>
+                <path d="M5 15l.75 2.25H8l-1.87 1.35.75 2.25L5 19.55l-1.88 1.3.75-2.25L2 17.25h2.25L5 15z" opacity=".6"/>
+                <path d="M19 15l.75 2.25H22l-1.87 1.35.75 2.25L19 19.55l-1.88 1.3.75-2.25L16 17.25h2.25L19 15z" opacity=".6"/>
+              </svg>
+              <span className="font-semibold text-slate-800 text-sm">Detectar piezas con IA</span>
+              <span className="ml-auto text-xs text-slate-400">Gemini Vision</span>
+            </div>
+
+            {/* Selector de unidades */}
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-xs text-slate-500 shrink-0">Medidas en la foto:</span>
+              {(['cm', 'mm', 'm'] as const).map(u => (
+                <button
+                  key={u}
+                  type="button"
+                  onClick={() => setUnidadImagen(u)}
+                  disabled={analizando}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${
+                    unidadImagen === u
+                      ? 'bg-gradient-to-r from-violet-500 to-indigo-500 text-white shadow-sm'
+                      : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                  }`}
+                >
+                  {u}
+                </button>
+              ))}
+            </div>
+
+            {/* Botón principal */}
+            <input
+              ref={inputImagenRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              id="input-imagen-gemini"
+              onChange={handleImagenSeleccionada}
+              disabled={analizando}
+            />
+            <label
+              htmlFor="input-imagen-gemini"
+              className={`flex items-center justify-center gap-2 w-full py-2.5 rounded-lg font-semibold text-sm transition-all select-none ${
+                analizando
+                  ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-violet-500 via-purple-500 to-indigo-500 text-white cursor-pointer hover:from-violet-600 hover:to-indigo-600 shadow hover:shadow-md active:scale-[.98]'
+              }`}
+            >
+              {analizando ? (
+                <>
+                  <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                  </svg>
+                  Analizando imagen...
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2l1.5 4.5H18l-3.75 2.7 1.5 4.5L12 11.1l-3.75 2.6 1.5-4.5L6 6.5h4.5L12 2z"/>
+                  </svg>
+                  {imagenPreview ? 'Cambiar imagen' : 'Detectar piezas con IA'}
+                </>
+              )}
+            </label>
+
+            {imagenPreview && !analizando && (
+              <div className="mt-2 flex items-center gap-2">
+                <img
+                  src={imagenPreview}
+                  alt="preview"
+                  className="h-10 w-10 object-cover rounded-lg border border-slate-200"
+                />
+                <span className="text-xs text-slate-400">Imagen cargada</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Error de extracción */}
+        {errorExtraccion && (
+          <div className="mb-4 bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-sm text-red-700 flex items-center justify-between">
+            <span>{errorExtraccion}</span>
+            <button onClick={() => setErrorExtraccion('')} className="ml-2 text-red-400 hover:text-red-600 font-bold">×</button>
+          </div>
+        )}
+
+        {/* Panel de piezas detectadas */}
+        {piezasExtraidas && (
+          <div className="mb-4 bg-amber-50 border border-amber-200 rounded-lg p-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-amber-800">
+                Piezas detectadas ({piezasExtraidas.length})
+              </span>
+              <button
+                onClick={descartarExtraccion}
+                className="text-xs text-amber-600 hover:text-amber-800 font-medium"
+              >
+                ✕ Descartar
+              </button>
+            </div>
+            {advertenciaExtr && (
+              <p className="text-xs text-amber-700 mb-2 bg-amber-100 rounded px-2 py-1">{advertenciaExtr}</p>
+            )}
+            <ul className="space-y-1 mb-3">
+              {piezasExtraidas.map((p, i) => (
+                <li key={i} className="text-sm text-amber-900">
+                  {i + 1}. {p.ancho} × {p.alto} m &nbsp;×{p.cantidad}
+                </li>
+              ))}
+            </ul>
+            <button
+              onClick={aplicarPiezasExtraidas}
+              className="w-full text-sm font-medium bg-amber-500 hover:bg-amber-600 text-white rounded-lg py-1.5 transition-colors"
+            >
+              ✓ Aplicar estas piezas
+            </button>
+          </div>
+        )}
+
 
         <div className="space-y-2">
           <div className="grid grid-cols-12 gap-2 px-1">
