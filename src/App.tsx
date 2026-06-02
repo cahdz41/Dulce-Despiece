@@ -5,11 +5,12 @@ import ImportButton from './components/ImportButton'
 import FacturasPage from './components/facturas/FacturasPage'
 import EtiquetasPage from './components/etiquetas/EtiquetasPage'
 import DespiecesPage from './components/despieces/DespiecesPage'
+import ProspectosPage from './components/prospectos/ProspectosPage'
 import { guardarDespiece, actualizarDespiece } from './services/despiecesFirestore'
 import { INVENTARIO_BASE } from './data/inventory'
 import type { Cotizacion, Material, PiezaSolicitada } from './types'
 
-type Pantalla = 'pedido' | 'resultado' | 'facturas' | 'etiquetas' | 'despieces'
+type Pantalla = 'pedido' | 'resultado' | 'facturas' | 'etiquetas' | 'despieces' | 'prospectos'
 
 export default function App() {
   const [pantalla, setPantalla]           = useState<Pantalla>('pedido')
@@ -190,6 +191,16 @@ export default function App() {
               >
                 Etiquetas
               </button>
+              <button
+                onClick={() => setPantalla('prospectos')}
+                className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
+                  pantalla === 'prospectos'
+                    ? 'bg-blue-500 text-white'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-700'
+                }`}
+              >
+                Prospectos
+              </button>
             </nav>
           </div>
         </div>
@@ -265,6 +276,7 @@ export default function App() {
         )}
         {pantalla === 'facturas' && <FacturasPage />}
         {pantalla === 'etiquetas' && <EtiquetasPage />}
+        {pantalla === 'prospectos' && <ProspectosPage />}
       </main>
     </div>
   )
