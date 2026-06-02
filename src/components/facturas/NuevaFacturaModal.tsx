@@ -88,7 +88,6 @@ export default function NuevaFacturaModal({ onClose }: Props) {
 
   function validar(): string[] {
     const e: string[] = []
-    if (!form.numeroFactura.trim()) e.push('El número de factura es obligatorio')
     if (!form.cliente.trim()) e.push('El cliente es obligatorio')
     if (!choferFinal.trim()) e.push('El chofer es obligatorio')
     if (montoTotal <= 0) e.push('El monto total debe ser mayor a 0')
@@ -157,7 +156,7 @@ export default function NuevaFacturaModal({ onClose }: Props) {
             <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Datos básicos</h3>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">N° Factura *</label>
+                <label className="block text-xs font-medium text-slate-600 mb-1">N° Factura <span className="text-slate-400 font-normal">(opcional al crear)</span></label>
                 <input
                   type="text"
                   value={form.numeroFactura}

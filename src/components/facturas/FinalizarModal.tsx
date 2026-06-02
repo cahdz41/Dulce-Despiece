@@ -38,6 +38,11 @@ export default function FinalizarModal({ facturaId, numeroFactura, tipoPago, mon
   async function handleFinalizar() {
     setError('')
 
+    if (!numeroFactura?.trim()) {
+      setError('No se puede finalizar: el número de factura es obligatorio.')
+      return
+    }
+
     const requiereTransfConfirmada =
       tipoPago === 'transferencia' ||
       (tipoPago === 'mixto' && montoTransferencia > 0)

@@ -3,7 +3,7 @@ import type { Factura } from '../../types/facturas'
 import FinalizarModal from './FinalizarModal'
 import CancelarModal from './CancelarModal'
 import CambiarFotoModal from './CambiarFotoModal'
-import { actualizarEstatusTransferencia } from '../../services/firestore'
+import { actualizarEstatusTransferencia, actualizarFactura } from '../../services/firestore'
 import type { EstatusTransferencia } from '../../types/facturas'
 
 interface Props {
@@ -38,6 +38,9 @@ export default function FacturaDetalle({ factura, onVolver }: Props) {
   const [showCancelar, setShowCancelar] = useState(false)
   const [showCambiarFoto, setShowCambiarFoto] = useState(false)
   const [actualizandoTransf, setActualizandoTransf] = useState(false)
+  const [editandoNumero, setEditandoNumero] = useState(false)
+  const [numeroEditado, setNumeroEditado] = useState(factura.numeroFactura ?? '')
+  const [guardandoNumero, setGuardandoNumero] = useState(false)
 
   const fecha = factura.fechaCreacion?.toDate?.()
   const fechaStr = fecha?.toLocaleString('es-MX', {
@@ -73,7 +76,20 @@ export default function FacturaDetalle({ factura, onVolver }: Props) {
     factura.tipoPago === 'transferencia' ||
     (factura.tipoPago === 'mixto' && factura.montoTransferencia > 0)
   const transferenciaConfirmada = factura.estatusTransferencia === 'confirmada'
-  const puedeFinalizar = !requiereTransferenciaConfirmada || transferenciaConfirmada
+  const tieneNumeroFactura = !!factura.numeroFactura?.trim()
+  const puedeFinalizar = tieneNumeroFactura && (!requiereTransferenciaConfirmada || transferenciaConfirmada)
+
+  async function guardarNumeroFactura() {
+    const nuevo = numeroEditado.trim()
+    if (!nuevo) return
+    setGuardandoNumero(true)
+    try {
+      await actualizarFactura(factura.id, { numeroFactura: nuevo })
+      setEditandoNumero(false)
+    } finally {
+      setGuardandoNumero(false)
+    }
+  }
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -92,8 +108,52 @@ export default function FacturaDetalle({ factura, onVolver }: Props) {
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden mb-4">
         <div className="px-6 py-5 flex items-start justify-between border-b border-slate-100">
           <div>
-            <div className="flex items-center gap-3 mb-1">
-              <h1 className="text-2xl font-bold text-slate-800">#{factura.numeroFactura}</h1>
+            <div className="flex items-center gap-3 mb-1 flex-wrap">
+              {/* Número de factura — editable si está pendiente */}
+              {factura.estatus === 'pendiente' && editandoNumero ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={numeroEditado}
+                    onChange={e => setNumeroEditado(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') guardarNumeroFactura(); if (e.key === 'Escape') setEditandoNumero(false) }}
+                    placeholder="Ej: 1042"
+                    autoFocus
+                    className="w-32 border-2 border-blue-400 rounded-lg px-2 py-1 text-lg font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                  />
+                  <button
+                    onClick={guardarNumeroFactura}
+                    disabled={guardandoNumero || !numeroEditado.trim()}
+                    className="px-3 py-1 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white text-xs font-semibold rounded-lg transition-colors"
+                  >
+                    {guardandoNumero ? '...' : 'Guardar'}
+                  </button>
+                  <button
+                    onClick={() => { setEditandoNumero(false); setNumeroEditado(factura.numeroFactura ?? '') }}
+                    className="px-3 py-1 text-xs font-medium text-slate-500 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  {tieneNumeroFactura
+                    ? <h1 className="text-2xl font-bold text-slate-800">#{factura.numeroFactura}</h1>
+                    : <h1 className="text-lg font-semibold text-amber-600 italic">Sin número de factura</h1>
+                  }
+                  {factura.estatus === 'pendiente' && (
+                    <button
+                      onClick={() => setEditandoNumero(true)}
+                      title={tieneNumeroFactura ? 'Editar número' : 'Agregar número de factura'}
+                      className="text-slate-400 hover:text-blue-600 transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+              )}
               <span className={`text-xs font-semibold px-3 py-1 rounded-full border ${BADGE[factura.estatus]}`}>
                 {LABEL[factura.estatus]}
               </span>
@@ -236,6 +296,19 @@ export default function FacturaDetalle({ factura, onVolver }: Props) {
       {/* Acciones (solo si está pendiente) */}
       {factura.estatus === 'pendiente' && (
         <div className="space-y-3">
+          {!tieneNumeroFactura && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-start gap-2.5">
+              <svg className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+              </svg>
+              <div>
+                <p className="text-sm font-semibold text-amber-800">Número de factura requerido para finalizar</p>
+                <p className="text-xs text-amber-700 mt-0.5">
+                  Usa el ícono de lápiz junto al encabezado para agregar el número antes de finalizar.
+                </p>
+              </div>
+            </div>
+          )}
           {requiereTransferenciaConfirmada && !transferenciaConfirmada && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3 flex items-start gap-2.5">
               <svg className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
