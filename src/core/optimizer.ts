@@ -182,12 +182,11 @@ function optimizarCombinado(
         const eficienciaPct    = (areaPiezasTotal / areaVendidaTotal) * 100
 
         const maxSobranteActual = Math.max(maxSobrante(solA), maxSobrante(solB))
-        const esMejorDesperdicio = desperdicioTotal < mejorGlobal!.desperdicioTotal - 0.01
-        const esIgualDesperdicio = Math.abs(desperdicioTotal - mejorGlobal!.desperdicioTotal) <= 0.01
 
         if (!mejorGlobal ||
-            esMejorDesperdicio ||
-            (esIgualDesperdicio && maxSobranteActual > mejorMaxSobrante)) {
+            desperdicioTotal < mejorGlobal.desperdicioTotal - 0.01 ||
+            (Math.abs(desperdicioTotal - mejorGlobal.desperdicioTotal) <= 0.01 &&
+             maxSobranteActual > mejorMaxSobrante)) {
           mejorGlobal = { solA, solB, desperdicioTotal, areaVendidaTotal, eficienciaPct }
           mejorMaxSobrante = maxSobranteActual
         }
