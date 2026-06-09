@@ -58,6 +58,22 @@ function resolverMono(
   }
 }
 
+// ── Helpers de consolidación de desperdicio ───────────────────────────────────
+
+// Devuelve el área del sobrante más grande en todos los layouts de una solución.
+// Un sobrante grande y rectangularconcentrado es más valioso para el cliente
+// que varios sobrantes pequeños con la misma área total.
+function maxSobrante(sol: SolucionMono): number {
+  let max = 0
+  for (const layout of sol.layouts) {
+    for (const s of layout.sobrantes) {
+      const a = s.w * s.h
+      if (a > max) max = a
+    }
+  }
+  return max
+}
+
 // ── Fase 5: ranking mono-hoja ─────────────────────────────────────────────────
 
 function rankingMono(
@@ -87,8 +103,12 @@ function rankingMono(
   }
 
   resultados.sort((a, b) => {
-    if (Math.abs(a.desperdicioM2 - b.desperdicioM2) > 0.001) return a.desperdicioM2 - b.desperdicioM2
-    return a.nUnidades - b.nUnidades
+    // Primario: menos desperdicio total
+    if (Math.abs(a.desperdicioM2 - b.desperdicioM2) > 0.01) return a.desperdicioM2 - b.desperdicioM2
+    // Mismo número de hojas: preferir menos hojas
+    if (a.nUnidades !== b.nUnidades) return a.nUnidades - b.nUnidades
+    // Secundario: mayor sobrante individual (desperdicio más aprovechable para el cliente)
+    return maxSobrante(b) - maxSobrante(a)
   })
 
   return resultados
@@ -103,6 +123,7 @@ function optimizarCombinado(
   kerf: number
 ): SolucionCombinada | null {
   let mejorGlobal: SolucionCombinada | null = null
+  let mejorMaxSobrante = 0
 
   // Agrupar piezas por tipo (mismo ancho×alto) para Poda 3
   const tipos = agruparTipos(piezas)
@@ -160,8 +181,15 @@ function optimizarCombinado(
         const areaPiezasTotal  = solA.areaPiezas + solB.areaPiezas
         const eficienciaPct    = (areaPiezasTotal / areaVendidaTotal) * 100
 
-        if (!mejorGlobal || desperdicioTotal < mejorGlobal.desperdicioTotal) {
+        const maxSobranteActual = Math.max(maxSobrante(solA), maxSobrante(solB))
+        const esMejorDesperdicio = desperdicioTotal < mejorGlobal!.desperdicioTotal - 0.01
+        const esIgualDesperdicio = Math.abs(desperdicioTotal - mejorGlobal!.desperdicioTotal) <= 0.01
+
+        if (!mejorGlobal ||
+            esMejorDesperdicio ||
+            (esIgualDesperdicio && maxSobranteActual > mejorMaxSobrante)) {
           mejorGlobal = { solA, solB, desperdicioTotal, areaVendidaTotal, eficienciaPct }
+          mejorMaxSobrante = maxSobranteActual
         }
       }
     }

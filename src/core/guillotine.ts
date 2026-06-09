@@ -40,12 +40,37 @@ export function empacar(
         if (pw <= e.w + 0.001 && ph <= e.h + 0.001) {
           colocadas.push({ ancho: pw, alto: ph, piezaIdx: pieza.piezaIdx, x: e.x, y: e.y, rotada })
 
-          const sobranteDer: Rect = { x: e.x + pw + kerf, y: e.y,        w: e.w - pw - kerf, h: ph           }
-          const sobranteInf: Rect = { x: e.x,             y: e.y + ph + kerf, w: e.w,         h: e.h - ph - kerf }
+          const rw = e.w - pw - kerf  // ancho del espacio a la derecha de la pieza
+          const bh = e.h - ph - kerf  // alto del espacio debajo de la pieza
+
+          // Opción A (corte horizontal primero):
+          //   derecha = rw × ph  |  inferior = e.w × bh
+          const maxA = Math.max(
+            rw > 0.001 && ph    > 0.001 ? rw   * ph    : 0,
+            e.w > 0.001 && bh   > 0.001 ? e.w  * bh    : 0
+          )
+          // Opción B (corte vertical primero):
+          //   inferior = pw × bh  |  derecha = rw × e.h
+          const maxB = Math.max(
+            pw  > 0.001 && bh   > 0.001 ? pw   * bh    : 0,
+            rw  > 0.001 && e.h  > 0.001 ? rw   * e.h   : 0
+          )
+
+          // Elegir el corte que deja el rectángulo sobrante más grande (mejor para el cliente)
+          let s1: Rect, s2: Rect
+          if (maxB > maxA) {
+            // Vertical: franja inferior ancho=pw, franja derecha alto completo
+            s1 = { x: e.x,             y: e.y + ph + kerf, w: pw, h: bh   }
+            s2 = { x: e.x + pw + kerf, y: e.y,             w: rw,  h: e.h  }
+          } else {
+            // Horizontal: franja derecha alto=ph, franja inferior ancho completo
+            s1 = { x: e.x + pw + kerf, y: e.y,             w: rw,  h: ph   }
+            s2 = { x: e.x,             y: e.y + ph + kerf,  w: e.w, h: bh  }
+          }
 
           espacios.splice(i, 1)
-          if (sobranteDer.w > 0.001 && sobranteDer.h > 0.001) espacios.push(sobranteDer)
-          if (sobranteInf.w > 0.001 && sobranteInf.h > 0.001) espacios.push(sobranteInf)
+          if (s1.w > 0.001 && s1.h > 0.001) espacios.push(s1)
+          if (s2.w > 0.001 && s2.h > 0.001) espacios.push(s2)
           return true
         }
         return false
